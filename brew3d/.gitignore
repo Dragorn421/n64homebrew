@@ -3,3 +3,4 @@
 *.model64
 watchreupandlog_*.txt
 build
+*.z64

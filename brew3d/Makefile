@@ -16,6 +16,9 @@ FILESYSTEM_DIR = $(BUILD_DIR)/filesystem
 ASSETS_MODEL64 = brewmodel.model64
 FILESYSTEM_FILES = $(addprefix $(FILESYSTEM_DIR)/,$(ASSETS_MODEL64))
 
+%.model64: %.glb
+	mkmodel $^
+
 $(FILESYSTEM_DIR)/%.model64: %.model64
 	mkdir -p $(dir $@)
 	cp "$<" "$@"
