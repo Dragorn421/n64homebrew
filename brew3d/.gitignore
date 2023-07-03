@@ -1,0 +1,5 @@
+*.blend1
+*.glb
+*.model64
+watchreupandlog_*.txt
+build
