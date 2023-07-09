@@ -11,7 +11,7 @@ include $(N64_INST)/include/n64.mk
 C_FILES = $(shell find . -name '*.c')
 OBJS = $(addprefix $(BUILD_DIR)/,$(C_FILES:.c=.o))
 
-# assets
+# assets & rom filesystem
 FILESYSTEM_DIR = $(BUILD_DIR)/filesystem
 ASSETS_RGBA16_PNG = n64brew_32x64.png
 ASSETS_RGBA16_SPRITE = $(addprefix $(FILESYSTEM_DIR)/,$(ASSETS_RGBA16_PNG:.png=.sprite))
@@ -22,7 +22,12 @@ $(FILESYSTEM_DIR)/%.sprite: %.png
 	mkdir -p $(dir $@)
 	$(N64_MKSPRITE) -f RGBA16 --compress -o "$(dir $@)" "$<"
 
+# rom filesystem
+# libdragon's n64.mk Makefile recipes automatically know what to
+# do from adding these dependencies:
+# The generated filesystem file depends on the files it should embed
 $(BUILD_DIR)/file_system.dfs: $(FILESYSTEM_FILES)
+# The rom file depends on the generated filesystem file
 $(ROMNAME).z64: $(BUILD_DIR)/file_system.dfs
 #
 
