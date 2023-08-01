@@ -1,0 +1,29 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        },
+        {
+            "name": "N64",
+            "compilerPath": "${env:N64_GCCPREFIX}/bin/mips64-elf-gcc",
+            "includePath": [
+                "${workspaceFolder}/**",
+                //"${env:N64_INST}"
+                "/home/dragorn421/Documents/libragon/install"
+            ],
+            "defines": [
+            ],
+            "cStandard": "c17",
+            "cppStandard": "${default}"
+        }
+    ],
+    "version": 4
+}
