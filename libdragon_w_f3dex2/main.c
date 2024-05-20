@@ -69,9 +69,13 @@ void run_rsp_task(OSTask *intp)
     *SP_STATUS = SP_WSTATUS_CLEAR_SIG0 | SP_WSTATUS_CLEAR_SIG1 | SP_WSTATUS_CLEAR_SIG2 | SP_WSTATUS_SET_INTR_BREAK;
 
     assert(*SP_STATUS & SP_STATUS_HALTED);
-    *SP_PC = 0;
-    rsp_load_data(tp, sizeof(OSTask), 0x1000 - sizeof(OSTask));
-    rsp_load_code(tp->t.ucode_boot, tp->t.ucode_boot_size, 0);
+    *SP_PC = 0x80;
+    assert(sizeof(OSTask) == 0x40);
+    assert(tp->t.ucode_data_size <= 0xFC0);
+    rsp_load_data(tp->t.ucode_data, tp->t.ucode_data_size, 0);
+    rsp_load_data(tp, sizeof(OSTask), 0xFC0);
+    // rsp_load_code(tp->t.ucode_boot, 0x80, 0); // seems useless
+    rsp_load_code(tp->t.ucode, 0xF80, 0x80);
     *SP_STATUS = SP_WSTATUS_SET_INTR_BREAK | SP_WSTATUS_CLEAR_SSTEP | SP_WSTATUS_CLEAR_BROKE | SP_WSTATUS_CLEAR_HALT;
 }
 
@@ -127,8 +131,8 @@ int main()
 
     task->type = M_GFXTASK;
     task->flags = OS_TASK_LOADABLE;
-    task->ucode_boot = rspbootTextStart;
-    task->ucode_boot_size = (uint32_t)rspbootTextEnd - (uint32_t)rspbootTextStart;
+    // task->ucode_boot = rspbootTextStart;
+    // task->ucode_boot_size = (uint32_t)rspbootTextEnd - (uint32_t)rspbootTextStart;
     task->ucode = gspF3DZEX2_NoN_PosLight_fifoTextStart;
     task->ucode_data = gspF3DZEX2_NoN_PosLight_fifoDataStart;
     task->ucode_size = SP_UCODE_SIZE;
