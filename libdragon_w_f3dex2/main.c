@@ -23,52 +23,6 @@ u64 gGfxSPTaskStack[SP_DRAM_STACK_SIZE64];
 ALIGNED(16)
 Gfx workBuffer[1000];
 
-//
-// /home/dragorn421/Documents/oot/src/code/sys_ucode.c
-u64 *sDefaultGSPUCodeText = gspF3DZEX2_NoN_PosLight_fifoTextStart;
-u64 *sDefaultGSPUCodeData = gspF3DZEX2_NoN_PosLight_fifoDataStart;
-
-u64 *SysUcode_GetUCodeBoot(void)
-{
-    return rspbootTextStart;
-}
-
-size_t SysUcode_GetUCodeBootSize(void)
-{
-    return (size_t)((u8 *)rspbootTextEnd - (u8 *)rspbootTextStart);
-}
-
-u64 *SysUcode_GetUCode(void)
-{
-    return sDefaultGSPUCodeText;
-}
-
-u64 *SysUcode_GetUCodeData(void)
-{
-    return sDefaultGSPUCodeData;
-}
-//
-
-u32 __osSpDeviceBusy(void)
-{
-    if (*SP_STATUS & (SP_STATUS_DMA_BUSY | SP_STATUS_DMA_FULL | SP_STATUS_IO_BUSY))
-    {
-        return 1;
-    }
-    return 0;
-}
-
-s32 __osSpSetPc(void *pc)
-{
-    if (!(*SP_STATUS & SP_STATUS_HALTED))
-    {
-        return -1;
-    }
-
-    *SP_PC = (uint32_t)pc;
-    return 0;
-}
-
 static OSTask sTmpTask;
 
 OSTask *_VirtualToPhysicalTask(OSTask *intp)
@@ -95,35 +49,7 @@ OSTask *_VirtualToPhysicalTask(OSTask *intp)
     return tp;
 }
 
-#define OS_READ 0  // device -> RDRAM
-#define OS_WRITE 1 // device <- RDRAM
-s32 __osSpRawStartDma(s32 direction, void *devAddr, void *dramAddr, u32 size)
-{
-    if (__osSpDeviceBusy())
-    {
-        return -1;
-    }
-
-#define SP_BASE_REG 0xA4040000
-#define SP_MEM_ADDR_REG (volatile uint32_t *)(SP_BASE_REG + 0x00)
-#define SP_DRAM_ADDR_REG (volatile uint32_t *)(SP_BASE_REG + 0x04)
-#define SP_RD_LEN_REG (volatile uint32_t *)(SP_BASE_REG + 0x08)
-#define SP_WR_LEN_REG (volatile uint32_t *)(SP_BASE_REG + 0x0C)
-
-    *SP_MEM_ADDR_REG = (uint32_t)devAddr;
-    *SP_DRAM_ADDR_REG = PhysicalAddr(dramAddr);
-    if (direction == OS_READ)
-    {
-        *SP_WR_LEN_REG = size - 1;
-    }
-    else
-    {
-        *SP_RD_LEN_REG = size - 1;
-    }
-    return 0;
-}
-
-void osSpTaskLoad(OSTask *intp)
+void run_rsp_task(OSTask *intp)
 {
     OSTask *tp = _VirtualToPhysicalTask(intp);
 
@@ -142,32 +68,10 @@ void osSpTaskLoad(OSTask *intp)
     data_cache_hit_writeback(tp, sizeof(OSTask));
     *SP_STATUS = SP_WSTATUS_CLEAR_SIG0 | SP_WSTATUS_CLEAR_SIG1 | SP_WSTATUS_CLEAR_SIG2 | SP_WSTATUS_SET_INTR_BREAK;
 
-    while (__osSpSetPc((void *)SP_IMEM) == -1)
-    {
-        ;
-    }
-#define SP_DMEM_END ((uint32_t)SP_DMEM + 0x1000 - 1)
-    // could use libdragon's rsp_load_data ?
-    while (__osSpRawStartDma(OS_WRITE, (void *)(SP_DMEM_END + 1 - sizeof(OSTask)), tp, sizeof(OSTask)) == -1)
-    {
-        ;
-    }
-    while (__osSpDeviceBusy())
-    {
-        ;
-    }
-    while (__osSpRawStartDma(OS_WRITE, (void *)SP_IMEM, tp->t.ucode_boot, tp->t.ucode_boot_size) == -1)
-    {
-        ;
-    }
-}
-
-void osSpTaskStartGo(OSTask *tp)
-{
-    while (__osSpDeviceBusy())
-    {
-        ;
-    }
+    assert(*SP_STATUS & SP_STATUS_HALTED);
+    *SP_PC = 0;
+    rsp_load_data(tp, sizeof(OSTask), 0x1000 - sizeof(OSTask));
+    rsp_load_code(tp->t.ucode_boot, tp->t.ucode_boot_size, 0);
     *SP_STATUS = SP_WSTATUS_SET_INTR_BREAK | SP_WSTATUS_CLEAR_SSTEP | SP_WSTATUS_CLEAR_BROKE | SP_WSTATUS_CLEAR_HALT;
 }
 
@@ -191,6 +95,9 @@ void my_DP_interrupt_handler(void)
 int main()
 {
     debug_init_isviewer();
+    set_SP_interrupt(1);
+    set_DP_interrupt(1);
+
     fprintf(stderr, "hey\n");
 
     OSTask taskData;
@@ -216,14 +123,14 @@ int main()
     // Graph_Update
     gDPFullSync(workBufferEnd++);
 
-    gSPEndDisplayList(workBufferEnd++); // ?
+    gSPEndDisplayList(workBufferEnd++);
 
     task->type = M_GFXTASK;
-    task->flags = 0x0004; // OS_SC_DRAM_DLIST, no effect
-    task->ucode_boot = SysUcode_GetUCodeBoot();
-    task->ucode_boot_size = SysUcode_GetUCodeBootSize();
-    task->ucode = SysUcode_GetUCode();
-    task->ucode_data = SysUcode_GetUCodeData();
+    task->flags = OS_TASK_LOADABLE;
+    task->ucode_boot = rspbootTextStart;
+    task->ucode_boot_size = (uint32_t)rspbootTextEnd - (uint32_t)rspbootTextStart;
+    task->ucode = gspF3DZEX2_NoN_PosLight_fifoTextStart;
+    task->ucode_data = gspF3DZEX2_NoN_PosLight_fifoDataStart;
     task->ucode_size = SP_UCODE_SIZE;
     task->ucode_data_size = SP_UCODE_DATA_SIZE;
     task->dram_stack = gGfxSPTaskStack;
@@ -240,11 +147,10 @@ int main()
 
     data_cache_writeback_invalidate_all();
 
-    osSpTaskLoad(&taskData);
-    osSpTaskStartGo(&taskData);
+    run_rsp_task(&taskData);
 
     fprintf(stderr, "main done\n");
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < 5; i++)
     {
         fprintf(stderr, "%08lX %08lX %04hX\n", *SP_PC, *SP_STATUS, *UncachedShortAddr(&colorbuffer[0]));
         wait_ms(10);
