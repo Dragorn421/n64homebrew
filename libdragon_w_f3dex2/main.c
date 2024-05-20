@@ -82,18 +82,35 @@ void run_rsp_task(OSTask *intp)
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 ALIGNED(64)
-u16 colorbuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
-ALIGNED(64)
 u16 zbuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
+
+bool seen_sp_intr = false;
+bool seen_dp_intr = false;
 
 void my_SP_interrupt_handler(void)
 {
     fprintf(stderr, "my_SP_interrupt_handler\n");
+    seen_sp_intr = true;
 }
 
 void my_DP_interrupt_handler(void)
 {
     fprintf(stderr, "my_DP_interrupt_handler\n");
+    seen_dp_intr = true;
+}
+
+void wait_rsp_task(void)
+{
+    RSP_WAIT_LOOP(200)
+    {
+        disable_interrupts();
+        bool seen_sp_and_dp_intr = seen_sp_intr && seen_dp_intr;
+        if (seen_sp_and_dp_intr)
+            seen_sp_intr = seen_dp_intr = false;
+        enable_interrupts();
+        if (seen_sp_and_dp_intr)
+            break;
+    }
 }
 
 int main()
@@ -102,62 +119,67 @@ int main()
     set_SP_interrupt(1);
     set_DP_interrupt(1);
 
-    fprintf(stderr, "hey\n");
-
-    OSTask taskData;
-    OSTask_t *task = &taskData.t;
-
-    Gfx *workBufferEnd = workBuffer;
-
     register_SP_handler(my_SP_interrupt_handler);
     register_DP_handler(my_DP_interrupt_handler);
 
-    // Gfx_SetupFrame
-    gDPSetScissor(workBufferEnd++, G_SC_NON_INTERLACE, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    gDPSetColorImage(workBufferEnd++, G_IM_FMT_RGBA, G_IM_SIZ_16b, SCREEN_WIDTH, colorbuffer);
-    gDPSetDepthImage(workBufferEnd++, zbuffer);
+    fprintf(stderr, "hey\n");
 
-    gDPSetCycleType(workBufferEnd++, G_CYC_FILL);
-    gDPSetRenderMode(workBufferEnd++, G_RM_NOOP, G_RM_NOOP2);
-    u8 r = 255, g = 255, b = 0;
-    gDPSetFillColor(workBufferEnd++, (GPACK_RGBA5551(r, g, b, 1) << 16) | GPACK_RGBA5551(r, g, b, 1));
-    gDPFillRectangle(workBufferEnd++, 0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1);
-    gDPPipeSync(workBufferEnd++);
+    display_init((resolution_t){.width = SCREEN_WIDTH, .height = SCREEN_HEIGHT, .interlaced = false},
+                 DEPTH_16_BPP, 2, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS_DEDITHER);
 
-    // Graph_Update
-    gDPFullSync(workBufferEnd++);
-
-    gSPEndDisplayList(workBufferEnd++);
-
-    task->type = M_GFXTASK;
-    task->flags = OS_TASK_LOADABLE;
-    // task->ucode_boot = rspbootTextStart;
-    // task->ucode_boot_size = (uint32_t)rspbootTextEnd - (uint32_t)rspbootTextStart;
-    task->ucode = gspF3DZEX2_NoN_PosLight_fifoTextStart;
-    task->ucode_data = gspF3DZEX2_NoN_PosLight_fifoDataStart;
-    task->ucode_size = SP_UCODE_SIZE;
-    task->ucode_data_size = SP_UCODE_DATA_SIZE;
-    task->dram_stack = gGfxSPTaskStack;
-    task->dram_stack_size = sizeof(gGfxSPTaskStack);
-    task->output_buff = gGfxSPTaskOutputBuffer;
-    task->output_buff_size = gGfxSPTaskOutputBuffer + ARRAY_COUNT(gGfxSPTaskOutputBuffer);
-    task->data_ptr = (u64 *)workBuffer;
-
-    task->data_size = (uintptr_t)workBufferEnd - (uintptr_t)workBuffer;
-
-    task->yield_data_ptr = gGfxSPTaskYieldBuffer;
-
-    task->yield_data_size = sizeof(gGfxSPTaskYieldBuffer);
-
-    data_cache_writeback_invalidate_all();
-
-    run_rsp_task(&taskData);
-
-    fprintf(stderr, "main done\n");
-    for (int i = 0; i < 5; i++)
+    while (true)
     {
-        fprintf(stderr, "%08lX %08lX %04hX\n", *SP_PC, *SP_STATUS, *UncachedShortAddr(&colorbuffer[0]));
-        wait_ms(10);
+        surface_t *surf = display_get();
+
+        OSTask taskData;
+        OSTask_t *task = &taskData.t;
+
+        Gfx *workBufferEnd = workBuffer;
+
+        // Gfx_SetupFrame
+        gDPSetScissor(workBufferEnd++, G_SC_NON_INTERLACE, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+        gDPSetColorImage(workBufferEnd++, G_IM_FMT_RGBA, G_IM_SIZ_16b, SCREEN_WIDTH, surf->buffer);
+        gDPSetDepthImage(workBufferEnd++, zbuffer);
+
+        gDPSetCycleType(workBufferEnd++, G_CYC_FILL);
+        gDPSetRenderMode(workBufferEnd++, G_RM_NOOP, G_RM_NOOP2);
+        u8 r = abs((get_ticks_ms() / 5) % 200 - 100), g = 100, b = 50;
+        gDPSetFillColor(workBufferEnd++, (GPACK_RGBA5551(r, g, b, 1) << 16) | GPACK_RGBA5551(r, g, b, 1));
+        gDPFillRectangle(workBufferEnd++, 0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1);
+        gDPPipeSync(workBufferEnd++);
+
+        // Graph_Update
+        gDPFullSync(workBufferEnd++);
+
+        gSPEndDisplayList(workBufferEnd++);
+
+        task->type = M_GFXTASK;
+        task->flags = OS_TASK_LOADABLE;
+        // task->ucode_boot = rspbootTextStart;
+        // task->ucode_boot_size = (uint32_t)rspbootTextEnd - (uint32_t)rspbootTextStart;
+        task->ucode = gspF3DZEX2_NoN_PosLight_fifoTextStart;
+        task->ucode_data = gspF3DZEX2_NoN_PosLight_fifoDataStart;
+        task->ucode_size = SP_UCODE_SIZE;
+        task->ucode_data_size = SP_UCODE_DATA_SIZE;
+        task->dram_stack = gGfxSPTaskStack;
+        task->dram_stack_size = sizeof(gGfxSPTaskStack);
+        task->output_buff = gGfxSPTaskOutputBuffer;
+        task->output_buff_size = gGfxSPTaskOutputBuffer + ARRAY_COUNT(gGfxSPTaskOutputBuffer);
+        task->data_ptr = (u64 *)workBuffer;
+
+        task->data_size = (uintptr_t)workBufferEnd - (uintptr_t)workBuffer;
+
+        task->yield_data_ptr = gGfxSPTaskYieldBuffer;
+
+        task->yield_data_size = sizeof(gGfxSPTaskYieldBuffer);
+
+        data_cache_writeback_invalidate_all();
+
+        run_rsp_task(&taskData);
+
+        wait_rsp_task();
+
+        display_show(surf);
     }
     return 0;
 }
