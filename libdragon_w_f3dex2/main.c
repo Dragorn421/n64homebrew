@@ -1,25 +1,29 @@
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <libdragon.h>
 
-#include "/home/dragorn421/Documents/oot/include/ultra64/ucode.h"
-#include "/home/dragorn421/Documents/oot/include/ultra64/sptask.h"
+#include "libultra_defs.h"
+
 #define F3DEX_GBI_2
 #include "/home/dragorn421/Documents/oot/include/ultra64/gbi.h"
+
+extern uint64_t gspF3DZEX2_NoN_PosLight_fifoTextStart[];
+extern uint64_t gspF3DZEX2_NoN_PosLight_fifoDataStart[];
 
 #define ARRAY_COUNT(arr) (s32)(sizeof(arr) / sizeof(arr[0]))
 #define ALIGNED(n) __attribute__((aligned(n)))
 
 ALIGNED(16)
-u64 gGfxSPTaskOutputBuffer[0x3000];
+uint64_t gGfxSPTaskOutputBuffer[0x3000];
 
 ALIGNED(16)
-u64 gGfxSPTaskYieldBuffer[OS_YIELD_DATA_SIZE / sizeof(u64)];
+uint64_t gGfxSPTaskYieldBuffer[OS_YIELD_DATA_SIZE / sizeof(uint64_t)];
 
 ALIGNED(16)
-u64 gGfxSPTaskStack[SP_DRAM_STACK_SIZE64];
+uint64_t gGfxSPTaskStack[SP_DRAM_STACK_SIZE64];
 
 ALIGNED(16)
 Gfx workBuffer[1000];
@@ -154,7 +158,7 @@ int main()
 
         gSPEndDisplayList(workBufferEnd++);
 
-        task->type = M_GFXTASK;
+        task->type = 1; // M_GFXTASK
         task->flags = OS_TASK_LOADABLE;
         // task->ucode_boot = rspbootTextStart;
         // task->ucode_boot_size = (uint32_t)rspbootTextEnd - (uint32_t)rspbootTextStart;
