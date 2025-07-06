@@ -6,6 +6,7 @@
 
 #include "/home/dragorn421/Documents/oot/include/ultra64/ucode.h"
 #include "/home/dragorn421/Documents/oot/include/ultra64/sptask.h"
+#define F3DEX_GBI_2
 #include "/home/dragorn421/Documents/oot/include/ultra64/gbi.h"
 
 #define ARRAY_COUNT(arr) (s32)(sizeof(arr) / sizeof(arr[0]))
