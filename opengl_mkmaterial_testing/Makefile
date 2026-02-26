@@ -23,12 +23,15 @@ FILESYSTEM_FILES := $(addprefix $(FILESYSTEM_DIR)/,$(ASSETS_FILES))
 $(BUILD_DIR)/assets/materials.jmat: materials.blend
 	@mkdir -p $(dir $@)
 	@echo "    [JMAT] $@"
-	$(BLENDER) --background $< --python matex.py -- Material $@
+	$(BLENDER) --background $< --python matex.py -- $@ prim textured
 
 $(BUILD_DIR)/assets/materials.mdb: $(BUILD_DIR)/assets/materials.jmat
 	@mkdir -p $(dir $@)
 	@echo "    [MDB] $@"
+	rm -rf $(dir $@)/texdb
 	$(N64_BINDIR)/mkmaterial --output $(dir $@) $<
+	rm -rf $(FILESYSTEM_DIR)/texdb
+	cp -r $(dir $@)/texdb $(FILESYSTEM_DIR)/
 
 $(FILESYSTEM_DIR)/%.mdb: $(BUILD_DIR)/assets/%.mdb
 	@mkdir -p $(dir $@)
