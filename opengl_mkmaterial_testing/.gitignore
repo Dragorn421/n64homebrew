@@ -1,0 +1,4 @@
+build
+*.z64
+.vscode
+*.blend1
