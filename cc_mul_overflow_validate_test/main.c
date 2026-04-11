@@ -19,6 +19,7 @@ int main()
 
     rdpq_set_mode_standard();
     rdpq_set_prim_color((color_t){0xFF, 0x80, 0x40, 0xFF});
+    rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
 
     int posX = 10, posY = 10;
 
@@ -46,7 +47,28 @@ int main()
     posX += 40;
     rdpq_mode_combiner(RDPQ_COMBINER2(
         (1, 0, PRIM, 0), (0, 0, 0, 1),
-        (PRIM, 0, COMBINED, 0), (0, 0, 0, 1)));
+        (1, 0, COMBINED, 0), (0, 0, 0, 1)));
+    rdpq_fill_rectangle(posX, posY, posX + 32, posY + 32);
+
+    rdpq_debug_log_msg("1 PRIM ENV PRIM -> mul=COMBINED");
+    posX += 40;
+    rdpq_mode_combiner(RDPQ_COMBINER2(
+        (1, PRIM, ENV, PRIM), (0, 0, 0, 1),
+        (1, 0, COMBINED, 0), (0, 0, 0, 1)));
+    rdpq_fill_rectangle(posX, posY, posX + 32, posY + 32);
+
+    rdpq_debug_log_msg("1 0 ENV PRIM -> mul=COMBINED");
+    posX += 40;
+    rdpq_mode_combiner(RDPQ_COMBINER2(
+        (1, 0, ENV, PRIM), (0, 0, 0, 1),
+        (1, 0, COMBINED, 0), (0, 0, 0, 1)));
+    rdpq_fill_rectangle(posX, posY, posX + 32, posY + 32);
+
+    rdpq_debug_log_msg("0 0 ENV 1 -> mul=COMBINED");
+    posX += 40;
+    rdpq_mode_combiner(RDPQ_COMBINER2(
+        (0, 0, ENV, 1), (0, 0, 0, 1),
+        (1, 0, COMBINED, 0), (0, 0, 0, 1)));
     rdpq_fill_rectangle(posX, posY, posX + 32, posY + 32);
 
     rdpq_detach_show();
