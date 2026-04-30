@@ -1,0 +1,29 @@
+{
+    "configurations": [
+        {
+            "name": "N64",
+
+            "compilerPath": "${env:N64_INST}/bin/mips64-elf-gcc",
+            // Or use N64_GCCPREFIX if you use that:
+            //"compilerPath": "${env:N64_GCCPREFIX}/bin/mips64-elf-gcc",
+
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${env:N64_INST}/mips64-elf/include"
+            ],
+            "browse": {
+                "path": [
+                    // make the IDE find the libdragon source code
+                    // Change this to the path to your local libdragon clone
+                    "/home/dragorn421/Documents/libdragon/src"
+                ]
+            },
+            "defines": [
+                "N64"
+            ],
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17"
+        }
+    ],
+    "version": 4
+}
