@@ -1,0 +1,25 @@
+CompileFlags:
+  Add:
+    # VR4300 uses the MIPS III ISA
+    - -march=mips3
+
+    # clangd defaults to the n64 ABI which uses 64-bits pointers.
+    # libdragon uses o64 but clangd doesn't support it.
+    # Setting ABI to o32 for its 32-bit pointers should be good enough.
+    - -mabi=o32
+
+    # clangd doesn't automatically put this folder on the include path
+    # The folder path should match the expansion of
+    # $N64_INST/mips64-elf/include (or $N64_GCCPREFIX/mips64-elf/include if you use N64_GCCPREFIX)
+    - -I/opt/n64/libdragon/mips64-elf/include
+
+  Remove:
+    # clangd doesn't accept specific MIPS CPUs for -march
+    - -march=vr4300
+
+    # clangd doesn't support the o64 ABI
+    - -mabi=o64
+
+# Supported from clangd-22 onwards:
+Documentation:
+  CommentFormat: Doxygen
