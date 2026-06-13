@@ -23,6 +23,7 @@ $(FILESYSTEM_DIR)/%.sprite: %.png
 	$(N64_MKSPRITE) -f RGBA16 --compress -o "$(dir $@)" "$<"
 
 # rom filesystem
+N64_MKDFS_ROOT := $(FILESYSTEM_DIR)
 # libdragon's n64.mk Makefile recipes automatically know what to
 # do from adding these dependencies:
 # The generated filesystem file depends on the files it should embed
