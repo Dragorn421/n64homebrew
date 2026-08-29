@@ -20,7 +20,7 @@ MAIN_ELF_EXTERNS := $(BUILD_DIR)/$(ROMNAME).externs
 DSOS := $(BUILD_DIR)/filesystem/fmv.dso
 
 $(MAIN_ELF_EXTERNS): $(DSOS)
-$(BUILD_DIR)/filesystem/fmv.dso: N64_DSOLDFLAGS += --gc-sections
+$(BUILD_DIR)/filesystem/fmv.dso: N64_DSOLDFLAGS += --gc-sections --gc-keep-exported
 $(BUILD_DIR)/filesystem/fmv.dso: $(BUILD_DIR)/dso.o \
  $(BUILD_DIR)/libdragon/fmv.o \
  $(BUILD_DIR)/libdragon/h264.o \
@@ -34,12 +34,14 @@ $(BUILD_DIR)/filesystem/fmv.dso: $(BUILD_DIR)/dso.o \
 
 LIBDRAGON_SRC := /home/dragorn421/Documents/libragon
 
+$(BUILD_DIR)/filesystem/fmv.dso: CFLAGS += -I $(LIBDRAGON_SRC)/src -fvisibility=hidden
+
 # next two recipes copypasted from n64.mk
 
 $(BUILD_DIR)/libdragon/%.o: $(LIBDRAGON_SRC)/src/video/%.c
 	@mkdir -p $(dir $@)
 	@echo "    [CC] $<"
-	$(CC) -c $(CFLAGS) -I $(LIBDRAGON_SRC)/src -o $@ $<
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 $(BUILD_DIR)/libdragon/%.o: $(LIBDRAGON_SRC)/src/video/%.S
 	@mkdir -p $(dir $@)
