@@ -4,8 +4,6 @@ This demonstrates a pile of hacks to put parts of libdragon (in this case FMV pl
 
 This is done by recompiling parts of libdragon from source and linking those into the DSO.
 
-`things[0] = 0;`, `things.c` and `missing_symbols.h` are a hack to get ld to link parts of libdragon into the main elf that are needed by the fmv player. these parts could obviously be moved to the DSO too but since they have general use beyond FMVs it seems reasonable to just include them in the main elf.
-
 The DSO is contrarily to typical libdragon DSOs linked with `--gc-sections` passed to ld, which is needed to garbage collect unused code in (at least) the h264 decoder that would otherwise not link due to missing functions. However `--gc-sections` without an entrypoint means ld would garbage collect everything, so we also add `--gc-keep-exported` to keep exported symbols. By default all non-static symbols are exported, which would defeat the point. So we add `-fvisibility=hidden` to instead export none by default and use `__attribute__((visibility("default")))` to mark the single function we use as exported (thanks Rasky for the suggestion about exported symbols).
 
 ## other approaches tried

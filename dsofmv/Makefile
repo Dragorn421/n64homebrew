@@ -9,7 +9,7 @@ all: $(ROMNAME).z64
 BUILD_DIR = build
 include $(N64_INST)/include/n64.mk
 
-C_FILES = main.c things.c
+C_FILES = main.c
 OBJS = $(addprefix $(BUILD_DIR)/,$(C_FILES:.c=.o))
 
 $(ROMNAME).z64: N64_ROM_TITLE = $(ROM_TITLE)
@@ -20,6 +20,8 @@ MAIN_ELF_EXTERNS := $(BUILD_DIR)/$(ROMNAME).externs
 DSOS := $(BUILD_DIR)/filesystem/fmv.dso
 
 $(MAIN_ELF_EXTERNS): $(DSOS)
+$(BUILD_DIR)/$(ROMNAME).elf: $(MAIN_ELF_EXTERNS)
+
 $(BUILD_DIR)/filesystem/fmv.dso: N64_DSOLDFLAGS += --gc-sections --gc-keep-exported
 $(BUILD_DIR)/filesystem/fmv.dso: $(BUILD_DIR)/dso.o \
  $(BUILD_DIR)/libdragon/fmv.o \
