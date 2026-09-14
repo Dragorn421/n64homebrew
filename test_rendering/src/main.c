@@ -8,50 +8,60 @@ sprite_t *sprite_sunflower;       // ci4, cutout
 
 typedef void (*trf)(void);
 
-void trf_rdpq_mode_alphacompare_100(void) { rdpq_mode_alphacompare(100); }
-void trf_rdpq_mode_antialias_standard(void) {
+static void trf_rdpq_mode_alphacompare_100(void) {
+  rdpq_mode_alphacompare(100);
+}
+static void trf_rdpq_mode_antialias_standard(void) {
   rdpq_mode_antialias(AA_STANDARD);
 }
-void trf_rdpq_mode_blender_multiply(void) {
+static void trf_rdpq_mode_blender_multiply(void) {
   rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
 }
-void trf_rdpq_mode_combiner_tex(void) { rdpq_mode_combiner(RDPQ_COMBINER_TEX); }
-void trf_rdpq_mode_dithering_square_square(void) {
+static void trf_rdpq_mode_combiner_tex(void) {
+  rdpq_mode_combiner(RDPQ_COMBINER_TEX);
+}
+static void trf_rdpq_mode_dithering_square_square(void) {
   rdpq_mode_dithering(DITHER_SQUARE_SQUARE);
 }
-void trf_rdpq_mode_filter_bilinear(void) { rdpq_mode_filter(FILTER_BILINEAR); }
-void trf_rdpq_mode_fog_standard(void) { rdpq_mode_fog(RDPQ_FOG_STANDARD); }
-void trf_rdpq_mode_persp_true(void) { rdpq_mode_persp(true); }
-void trf_rdpq_mode_tlut_rgba16(void) { rdpq_mode_tlut(TLUT_RGBA16); }
-void trf_rdpq_mode_zbuf_compare_update(void) { rdpq_mode_zbuf(true, true); }
-void trf_rdpq_set_fog_color_white(void) {
+static void trf_rdpq_mode_filter_bilinear(void) {
+  rdpq_mode_filter(FILTER_BILINEAR);
+}
+static void trf_rdpq_mode_fog_standard(void) {
+  rdpq_mode_fog(RDPQ_FOG_STANDARD);
+}
+static void trf_rdpq_mode_persp_true(void) { rdpq_mode_persp(true); }
+static void trf_rdpq_mode_tlut_rgba16(void) { rdpq_mode_tlut(TLUT_RGBA16); }
+static void trf_rdpq_mode_zbuf_compare_update(void) {
+  rdpq_mode_zbuf(true, true);
+}
+static void trf_rdpq_set_fog_color_white(void) {
   rdpq_set_fog_color(color_from_packed32(0xFFFFFFFF));
 }
 
-void trf_rdpq_sprite_upload_big_energy_ball(void) {
+static void trf_rdpq_sprite_upload_big_energy_ball(void) {
   rdpq_sprite_upload(TILE0, sprite_big_energy_ball, &(rdpq_texparms_t){});
 }
-void trf_rdpq_tex_upload_big_energy_ball(void) {
+static void trf_rdpq_tex_upload_big_energy_ball(void) {
   surface_t surf = sprite_get_pixels(sprite_big_energy_ball);
   rdpq_tex_upload(TILE0, &surf, &(rdpq_texparms_t){});
 }
 
-void trf_rdpq_sprite_upload_ring(void) {
+static void trf_rdpq_sprite_upload_ring(void) {
   rdpq_sprite_upload(TILE0, sprite_ring, &(rdpq_texparms_t){});
 }
-void trf_rdpq_tex_upload_ring(void) {
+static void trf_rdpq_tex_upload_ring(void) {
   surface_t surf = sprite_get_pixels(sprite_ring);
   rdpq_tex_upload(TILE0, &surf, &(rdpq_texparms_t){});
 }
 
-void trf_rdpq_sprite_upload_sunflower(void) {
+static void trf_rdpq_sprite_upload_sunflower(void) {
   rdpq_sprite_upload(TILE0, sprite_sunflower,
                      &(rdpq_texparms_t){
                          .s.repeats = REPEAT_INFINITE,
                          .t.repeats = REPEAT_INFINITE,
                      });
 }
-void trf_rdpq_tex_upload_sunflower(void) {
+static void trf_rdpq_tex_upload_sunflower(void) {
   surface_t surf = sprite_get_pixels(sprite_sunflower);
   rdpq_tex_upload(TILE0, &surf,
                   &(rdpq_texparms_t){
@@ -60,27 +70,44 @@ void trf_rdpq_tex_upload_sunflower(void) {
                       .t.repeats = REPEAT_INFINITE,
                   });
 }
-void trf_rdpq_tex_upload_tlut_sunflower(void) {
+static void trf_rdpq_tex_upload_tlut_sunflower(void) {
   rdpq_tex_upload_tlut(sprite_get_palette(sprite_sunflower), 0, 16);
 }
 
 // TESTS
 
-trf trf_test1[] = {
-    trf_rdpq_mode_filter_bilinear,
-    trf_rdpq_sprite_upload_sunflower,
-    trf_rdpq_mode_fog_standard,
-    trf_rdpq_set_fog_color_white,
+static trf trf_test1[] = {
+    trf_rdpq_mode_filter_bilinear, trf_rdpq_sprite_upload_sunflower,
+    trf_rdpq_mode_fog_standard,    trf_rdpq_set_fog_color_white,
+    trf_rdpq_mode_persp_true,
 };
-trf trf_test2[] = {
+static trf trf_test2[] = {
     trf_rdpq_sprite_upload_sunflower,
     trf_rdpq_mode_alphacompare_100,
     trf_rdpq_mode_antialias_standard,
+    trf_rdpq_mode_combiner_tex,
 };
-trf trf_test3[] = {
+static trf trf_test3[] = {
     trf_rdpq_sprite_upload_big_energy_ball,
     trf_rdpq_mode_blender_multiply,
     trf_rdpq_mode_antialias_standard,
+    trf_rdpq_mode_dithering_square_square,
+};
+static trf trf_test4[] = {
+    trf_rdpq_sprite_upload_ring,
+};
+static trf trf_test5[] = {
+    trf_rdpq_tex_upload_sunflower,
+    trf_rdpq_tex_upload_tlut_sunflower,
+    trf_rdpq_mode_tlut_rgba16,
+    trf_rdpq_mode_alphacompare_100,
+};
+static trf trf_test6[] = {
+    trf_rdpq_tex_upload_ring,
+    trf_rdpq_mode_zbuf_compare_update,
+};
+static trf trf_test7[] = {
+    trf_rdpq_tex_upload_big_energy_ball,
 };
 
 #define TEST(trfs) {#trfs, trfs, sizeof(trfs) / sizeof(trfs[0])}
@@ -92,6 +119,10 @@ struct {
     TEST(trf_test1),
     TEST(trf_test2),
     TEST(trf_test3),
+    TEST(trf_test4),
+    TEST(trf_test5),
+    TEST(trf_test6),
+    TEST(trf_test7),
 };
 #undef TEST
 
