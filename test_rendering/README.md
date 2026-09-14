@@ -7,6 +7,7 @@ The methods compared are:
 
 - with/without `rdpq_mode_begin`/`end` batching
 - with/without block recording
+- when recording blocks, using/not using frozen blocks
 
 This test rom does not display anything, it only outputs to
 a terminal (including drawing framebuffers to the terminal).
