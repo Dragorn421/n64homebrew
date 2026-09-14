@@ -6,6 +6,8 @@ sprite_t *sprite_sunflower;       // ci4, cutout
 
 // TRF = Test Rendering Fragment
 
+typedef void (*trf)(void);
+
 void trf_rdpq_mode_alphacompare_100(void) { rdpq_mode_alphacompare(100); }
 void trf_rdpq_mode_antialias_standard(void) {
   rdpq_mode_antialias(AA_STANDARD);
@@ -22,6 +24,9 @@ void trf_rdpq_mode_fog_standard(void) { rdpq_mode_fog(RDPQ_FOG_STANDARD); }
 void trf_rdpq_mode_persp_true(void) { rdpq_mode_persp(true); }
 void trf_rdpq_mode_tlut_rgba16(void) { rdpq_mode_tlut(TLUT_RGBA16); }
 void trf_rdpq_mode_zbuf_compare_update(void) { rdpq_mode_zbuf(true, true); }
+void trf_rdpq_set_fog_color_white(void) {
+  rdpq_set_fog_color(color_from_packed32(0xFFFFFFFF));
+}
 
 void trf_rdpq_sprite_upload_big_energy_ball(void) {
   rdpq_sprite_upload(TILE0, sprite_big_energy_ball, &(rdpq_texparms_t){});
@@ -58,6 +63,39 @@ void trf_rdpq_tex_upload_sunflower(void) {
 void trf_rdpq_tex_upload_tlut_sunflower(void) {
   rdpq_tex_upload_tlut(sprite_get_palette(sprite_sunflower), 0, 16);
 }
+
+// TESTS
+
+trf trf_test1[] = {
+    trf_rdpq_mode_filter_bilinear,
+    trf_rdpq_sprite_upload_sunflower,
+    trf_rdpq_mode_fog_standard,
+    trf_rdpq_set_fog_color_white,
+};
+trf trf_test2[] = {
+    trf_rdpq_sprite_upload_sunflower,
+    trf_rdpq_mode_alphacompare_100,
+    trf_rdpq_mode_antialias_standard,
+};
+trf trf_test3[] = {
+    trf_rdpq_sprite_upload_big_energy_ball,
+    trf_rdpq_mode_blender_multiply,
+    trf_rdpq_mode_antialias_standard,
+};
+
+#define TEST(trfs) {#trfs, trfs, sizeof(trfs) / sizeof(trfs[0])}
+struct {
+  const char *name;
+  trf *trfs;
+  int count;
+} trf_list[] = {
+    TEST(trf_test1),
+    TEST(trf_test2),
+    TEST(trf_test3),
+};
+#undef TEST
+
+// Implementation
 
 struct vertex {
   int16_t pos[3];
@@ -138,7 +176,7 @@ int main() {
   float z_near = 0.1f, z_far = 10.0f;
 
   mgfx_get_fog(&uniform_data->fog,
-               &(mgfx_fog_parms_t){.start = 0.7, .end = 1.5});
+               &(mgfx_fog_parms_t){.start = 4.5, .end = 5.5});
 
   mgfx_get_lighting(&uniform_data->lighting,
                     &(mgfx_lighting_parms_t){
@@ -147,18 +185,18 @@ int main() {
                     });
 
   mgfx_get_texturing(&uniform_data->texturing,
-                     &(mgfx_texturing_parms_t){.scale = {16, 16}});
+                     &(mgfx_texturing_parms_t){.scale = {32, 32}});
 
   fm_mat4_t mat_projection;
   mg_mat4_perspective(&mat_projection, FM_DEG2RAD(60),
                       (float)fb_width / fb_height, z_near, z_far);
 
   fm_mat4_t mat_view;
-  fm_mat4_lookat(&mat_view, &(fm_vec3_t){{0.3, 0, 1}}, &(fm_vec3_t){{0, 0, 0}},
+  fm_mat4_lookat(&mat_view, &(fm_vec3_t){{2, 0, 5}}, &(fm_vec3_t){{0, 0, 0}},
                  &(fm_vec3_t){{0, 1, 0}});
   fm_mat4_t mat_model;
   fm_mat4_identity(&mat_model);
-  fm_mat4_scale(&mat_model, &(fm_vec3_t){{0.5, 0.5, 1}});
+  fm_mat4_scale(&mat_model, &(fm_vec3_t){{3, 3, 1}});
   fm_mat4_t mat_view_model;
   fm_mat4_mul(&mat_view_model, &mat_view, &mat_model);
   fm_mat4_t mat_projection_view_model;
@@ -187,18 +225,6 @@ int main() {
 
   rdpq_attach(&surf, &surf_z);
 
-  rdpq_clear(RGBA32(150, 200, 100, 255));
-  rdpq_clear_z(ZBUF_MAX);
-
-  rdpq_set_mode_standard();
-
-  trf_rdpq_mode_filter_bilinear();
-  trf_rdpq_sprite_upload_sunflower();
-  trf_rdpq_mode_fog_standard();
-  rdpq_set_fog_color(color_from_packed32(0xFFFFFFFF));
-
-  // rdpq_texture_rectangle(TILE0, 1, 1, 31, 31, 0, 0);
-
   mg_pipeline_bind(pipeline);
 
   mg_set_viewport(&(mg_viewport_t){
@@ -220,20 +246,110 @@ int main() {
                         MG_GEOMETRY_FLAGS_TEX_ENABLED |
                         MG_GEOMETRY_FLAGS_Z_ENABLED);
 
-  mg_uniform_load(fog_uniform, &uniform_data->fog);
-  mg_uniform_load(lighting_uniform, &uniform_data->lighting);
-  mg_uniform_load(texturing_uniform, &uniform_data->texturing);
-  mg_uniform_load(matrices_uniform, &uniform_data->matrices);
+  int n_failures = 0;
 
-  mg_bind_vertex_buffer(my_vertices);
+  surface_t ref_surf = surface_alloc(FMT_RGBA16, fb_width, fb_height);
+  surface_t ref_surf_z = surface_alloc(FMT_RGBA16, fb_width, fb_height);
+  for (int i = 0; i < sizeof(trf_list) / sizeof(trf_list[0]); i++) {
+    fprintf(stderr, "trf name = %s\n", trf_list[i].name);
+    bool has_ref = false;
+    for (int test_with_mode_batch = 0; test_with_mode_batch <= 1;
+         test_with_mode_batch++) {
+      fprintf(stderr, "  %s\n",
+              test_with_mode_batch ? "with mode batch" : "without mode batch");
+      enum {
+        TEST_TYPE_NAIVE,
+        TEST_TYPE_BLOCK,
+        // TEST_TYPE_FROZENBLOCK,
+        TEST_TYPE_MAX
+      };
+      const char *test_names[TEST_TYPE_MAX] = {
+          "naive",
+          "block",
+          // "frozenblock",
+      };
+      for (int test_type = 0; test_type < TEST_TYPE_MAX; test_type++) {
+        fprintf(stderr, "    test_type = %s\n", test_names[test_type]);
+        for (int k = 0; k < 1; k++) { // TODO permute trf_list[i].trfs
+          fprintf(stderr, "      k=%d\n", k);
+          rdpq_clear(RGBA32(150, 200, 100, 255));
+          rdpq_clear_z(ZBUF_MAX);
 
-  mg_draw_begin();
-  mg_load_vertices(0, 0, 4);
-  mg_draw_triangle(0, 1, 2);
-  mg_draw_triangle(2, 3, 0);
-  mg_draw_end();
+          rspq_wait();
 
-  rspq_wait();
+          if (test_type == TEST_TYPE_BLOCK) {
+            rspq_block_begin();
+          }
 
-  log_draw_surf(&surf);
+          if (test_with_mode_batch) {
+            rdpq_mode_begin();
+          }
+
+          rdpq_set_mode_standard();
+          for (int j = 0; j < trf_list[i].count; j++) {
+            trf_list[i].trfs[j]();
+          }
+
+          if (test_with_mode_batch) {
+            rdpq_mode_end();
+          }
+
+          if (test_type == TEST_TYPE_BLOCK) {
+            rspq_block_t *block = rspq_block_end();
+
+            rspq_block_run(block);
+
+            rspq_wait();
+            rspq_block_free(block);
+          }
+
+          mg_uniform_load(fog_uniform, &uniform_data->fog);
+          mg_uniform_load(lighting_uniform, &uniform_data->lighting);
+          mg_uniform_load(texturing_uniform, &uniform_data->texturing);
+          mg_uniform_load(matrices_uniform, &uniform_data->matrices);
+
+          mg_bind_vertex_buffer(my_vertices);
+
+          mg_draw_begin();
+          mg_load_vertices(0, 0, 4);
+          mg_draw_triangle(0, 1, 2);
+          mg_draw_triangle(2, 3, 0);
+          mg_draw_end();
+
+          rspq_wait();
+
+          if (!has_ref) {
+            memcpy(ref_surf.buffer, surf.buffer, surf.stride * surf.height);
+            memcpy(ref_surf_z.buffer, surf_z.buffer,
+                   surf_z.stride * surf_z.height);
+            has_ref = true;
+            fprintf(stderr, "Reference:\n");
+            log_draw_surf(&surf);
+          } else {
+            bool surf_match = memcmp(ref_surf.buffer, surf.buffer,
+                                     surf.stride * surf.height) == 0;
+            bool surf_z_match = memcmp(ref_surf_z.buffer, surf_z.buffer,
+                                       surf_z.stride * surf_z.height) == 0;
+            if (!surf_match || !surf_z_match) {
+              fprintf(stderr, "Test %s, reference:\n", trf_list[i].name);
+              log_draw_surf(&ref_surf);
+              fprintf(stderr, "differs from (%s, %s, k=%d):\n",
+                      test_with_mode_batch ? "with mode batch"
+                                           : "without mode batch",
+                      test_names[test_type], k);
+              if (surf_match) {
+                fprintf(stderr, "(NOTE: only depth differs)\n");
+              }
+              log_draw_surf(&surf);
+              n_failures++;
+            }
+          }
+          // Make sure we don't later writeback to the framebuffer
+          data_cache_writeback_invalidate_all();
+        }
+      }
+    }
+  }
+
+  fprintf(stderr, "n_failures = %d\n", n_failures);
 }

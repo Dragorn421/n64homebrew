@@ -1,5 +1,6 @@
 ROMNAME := test_rendering
 ROM_TITLE := "$(ROMNAME)"
+LIBDRAGON_PREVIEW := 2
 
 $(info Using N64_INST = $(N64_INST))
 
