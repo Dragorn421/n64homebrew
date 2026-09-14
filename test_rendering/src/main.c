@@ -116,13 +116,8 @@ struct {
   trf *trfs;
   int count;
 } trf_list[] = {
-    TEST(trf_test1),
-    TEST(trf_test2),
-    TEST(trf_test3),
-    TEST(trf_test4),
-    TEST(trf_test5),
-    TEST(trf_test6),
-    TEST(trf_test7),
+    TEST(trf_test1), TEST(trf_test2), TEST(trf_test3), TEST(trf_test4),
+    TEST(trf_test5), TEST(trf_test6), TEST(trf_test7),
 };
 #undef TEST
 
@@ -291,13 +286,13 @@ int main() {
       enum {
         TEST_TYPE_NAIVE,
         TEST_TYPE_BLOCK,
-        // TEST_TYPE_FROZENBLOCK,
+        TEST_TYPE_FROZENBLOCK,
         TEST_TYPE_MAX
       };
       const char *test_names[TEST_TYPE_MAX] = {
           "naive",
           "block",
-          // "frozenblock",
+          "frozenblock",
       };
       for (int test_type = 0; test_type < TEST_TYPE_MAX; test_type++) {
         fprintf(stderr, "    test_type = %s\n", test_names[test_type]);
@@ -310,6 +305,9 @@ int main() {
 
           if (test_type == TEST_TYPE_BLOCK) {
             rspq_block_begin();
+          }
+          if (test_type == TEST_TYPE_FROZENBLOCK) {
+            rspq_block_begin_frozen(NULL);
           }
 
           if (test_with_mode_batch) {
@@ -329,6 +327,15 @@ int main() {
             rspq_block_t *block = rspq_block_end();
 
             rspq_block_run(block);
+
+            rspq_wait();
+            rspq_block_free(block);
+          }
+          if (test_type == TEST_TYPE_FROZENBLOCK) {
+            rspq_block_t *block = rspq_block_end_frozen();
+
+            bool res = rspq_block_run_frozen(block);
+            assert(res);
 
             rspq_wait();
             rspq_block_free(block);

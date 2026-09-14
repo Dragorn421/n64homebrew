@@ -23,5 +23,4 @@ To add a test, see the `trf_list` array.
 
 ## TODO
 
-- Test frozen blocks
 - Permute trfs for a given test
